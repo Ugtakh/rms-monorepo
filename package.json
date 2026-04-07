@@ -13,6 +13,9 @@
     "db:init": "pnpm --filter @rms/api db:init",
     "db:seed": "pnpm --filter @rms/api seed"
   },
+  "engines": {
+    "node": ">=22"
+  },
   "devDependencies": {
     "typescript": "^5.9.3"
   }
