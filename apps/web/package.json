@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "pnpm --filter @rms/shared build && next dev -p 3000",
-    "build": "pnpm --filter @rms/shared build && next build --webpack",
+    "build": "pnpm --filter @rms/shared build && next build",
     "start": "pnpm --filter @rms/shared build && next start -p 3000",
     "lint": "next lint",
     "typecheck": "pnpm --filter @rms/shared build && tsc -p tsconfig.json --noEmit"
