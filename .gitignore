@@ -10,3 +10,5 @@ coverage
 apps/api/prisma/generated
 
 .turbo
+.vercel
+.env*.local

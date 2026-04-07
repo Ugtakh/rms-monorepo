@@ -1,0 +1,8 @@
+node_modules
+.pnpm-store
+apps/api
+apps/api/node_modules
+packages/shared/node_modules
+dist
+.turbo
+*.log
