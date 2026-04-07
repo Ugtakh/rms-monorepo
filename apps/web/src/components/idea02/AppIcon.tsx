@@ -1,0 +1,166 @@
+"use client";
+
+import type { ComponentType } from "react";
+import {
+  Archive,
+  ArrowDown,
+  ArrowLeft,
+  ArrowUp,
+  ArrowUpDown,
+  Banknote,
+  BadgePercent,
+  BarChart3,
+  Beaker,
+  Bell,
+  BellOff,
+  BellRing,
+  Bookmark,
+  Building,
+  Building2,
+  CakeSlice,
+  CalendarDays,
+  Check,
+  ChevronDown,
+  ChevronUp,
+  ChevronsUpDown,
+  CircleCheck,
+  CircleEllipsis,
+  CirclePlus,
+  CircleX,
+  Clock3,
+  Cpu,
+  CreditCard,
+  Download,
+  FileText,
+  Flame,
+  Home,
+  Info,
+  Layers3,
+  Leaf,
+  Lock,
+  Mail,
+  Megaphone,
+  Minus,
+  Monitor,
+  MessageCircleMore,
+  MapPin,
+  Plus,
+  Printer,
+  QrCode,
+  Server,
+  ShieldCheck,
+  Snowflake,
+  ShoppingBag,
+  ShoppingCart,
+  Sparkles,
+  Store,
+  Table,
+  TrendingDown,
+  TrendingUp,
+  TriangleAlert,
+  Truck,
+  Smartphone,
+  Star,
+  Tablet,
+  User,
+  Users,
+  Volume2,
+  VolumeX,
+  ListOrdered,
+  Wifi,
+  Zap,
+  X
+} from "lucide-react";
+
+type IconProps = {
+  name: string;
+  variant?: "outline" | "solid";
+  size?: number;
+  className?: string;
+  onClick?: () => void;
+  disabled?: boolean;
+};
+
+const iconMap: Record<string, ComponentType<{ className?: string; size?: number; onClick?: () => void }>> = {
+  SparklesIcon: Sparkles,
+  FireIcon: Flame,
+  CpuChipIcon: Cpu,
+  LeafIcon: Leaf,
+  CircleStackIcon: Layers3,
+  CakeIcon: CakeSlice,
+  BeakerIcon: Beaker,
+  StarIcon: Star,
+  ComputerDesktopIcon: Monitor,
+  DeviceTabletIcon: Tablet,
+  DevicePhoneMobileIcon: Smartphone,
+  QrCodeIcon: QrCode,
+  SnowflakeIcon: Snowflake,
+  TruckIcon: Truck,
+  ExclamationTriangleIcon: TriangleAlert,
+  MapPinIcon: MapPin,
+  UserGroupIcon: Users,
+  UserIcon: User,
+  ChatBubbleLeftEllipsisIcon: MessageCircleMore,
+  BellIcon: Bell,
+  BellAlertIcon: BellRing,
+  BellSlashIcon: BellOff,
+  SpeakerWaveIcon: Volume2,
+  SpeakerXMarkIcon: VolumeX,
+  BuildingStorefrontIcon: Store,
+  QueueListIcon: ListOrdered,
+  ChartBarIcon: BarChart3,
+  HomeIcon: Home,
+  ShoppingBagIcon: ShoppingBag,
+  ShoppingCartIcon: ShoppingCart,
+  CheckIcon: Check,
+  CheckCircleIcon: CircleCheck,
+  XCircleIcon: CircleX,
+  XMarkIcon: X,
+  ClockIcon: Clock3,
+  DocumentTextIcon: FileText,
+  ArchiveBoxIcon: Archive,
+  CreditCardIcon: CreditCard,
+  BanknotesIcon: Banknote,
+  CurrencyDollarIcon: Banknote,
+  ArrowLeftIcon: ArrowLeft,
+  ArrowUpIcon: ArrowUp,
+  ArrowDownIcon: ArrowDown,
+  ArrowTrendingUpIcon: TrendingUp,
+  ArrowTrendingDownIcon: TrendingDown,
+  ChevronDownIcon: ChevronDown,
+  ChevronUpIcon: ChevronUp,
+  ChevronUpDownIcon: ChevronsUpDown,
+  PlusCircleIcon: CirclePlus,
+  MinusIcon: Minus,
+  PlusIcon: Plus,
+  WifiIcon: Wifi,
+  ArrowDownTrayIcon: Download,
+  PrinterIcon: Printer,
+  EnvelopeIcon: Mail,
+  CalendarDaysIcon: CalendarDays,
+  BookmarkIcon: Bookmark,
+  TableCellsIcon: Table,
+  InformationCircleIcon: Info,
+  ShieldCheckIcon: ShieldCheck,
+  LockClosedIcon: Lock,
+  ServerIcon: Server,
+  BuildingOfficeIcon: Building,
+  BoltIcon: Zap,
+  MegaphoneIcon: Megaphone,
+  EllipsisHorizontalCircleIcon: CircleEllipsis,
+  ChartBarSquareIcon: BarChart3,
+  PercentBadgeIcon: BadgePercent
+};
+
+export default function AppIcon({ name, variant, size = 24, className, onClick, disabled }: IconProps) {
+  const Icon = iconMap[name] ?? CircleX;
+  const stateClass = disabled ? "opacity-50 cursor-not-allowed" : onClick ? "cursor-pointer" : "";
+  const variantClass = variant === "solid" ? "stroke-[2.4]" : "";
+  return (
+    <Icon
+      size={size}
+      className={`${className ?? ""} ${stateClass} ${variantClass}`.trim()}
+      onClick={disabled ? undefined : onClick}
+    />
+  );
+}
