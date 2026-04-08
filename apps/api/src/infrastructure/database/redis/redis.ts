@@ -7,10 +7,24 @@ export const redis = new Redis(env.REDIS_URL, {
   enableOfflineQueue: false
 });
 
+let redisConnectionPromise: Promise<void> | null = null;
+
+const isRedisReady = () => redis.status === "ready";
+
 export const connectRedis = async (): Promise<void> => {
-  if (redis.status === "ready") {
+  if (isRedisReady()) {
     return;
   }
 
-  await redis.connect();
+  if (!redisConnectionPromise) {
+    redisConnectionPromise = redis.connect().then(() => undefined);
+  }
+
+  try {
+    await redisConnectionPromise;
+  } finally {
+    if (!isRedisReady()) {
+      redisConnectionPromise = null;
+    }
+  }
 };

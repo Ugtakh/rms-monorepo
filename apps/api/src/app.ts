@@ -8,6 +8,7 @@ import { errorHandler } from "./common/middleware/error-handler.js";
 import { notFoundHandler } from "./common/middleware/not-found.js";
 import { apiRouter } from "./routes/index.js";
 import { registerSwagger } from "./docs/swagger.js";
+import { bootstrapApp } from "./bootstrap.js";
 
 export const createApp = () => {
   const app = express();
@@ -25,7 +26,16 @@ export const createApp = () => {
   app.use(requestIdMiddleware);
 
   registerSwagger(app);
-  
+
+  app.use(async (_req, _res, next) => {
+    try {
+      await bootstrapApp();
+      next();
+    } catch (error) {
+      next(error);
+    }
+  });
+
   app.use("/api", apiRouter);
 
   app.use(notFoundHandler);
@@ -34,3 +44,6 @@ export const createApp = () => {
   return app;
 };
 
+const app = createApp();
+
+export default app;

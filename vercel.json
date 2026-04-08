@@ -1,6 +1,6 @@
 {
   "functions": {
-    "apps/api/src/index.ts": {
+    "apps/api/src/app.ts": {
       "runtime": "nodejs20.x"
     }
   }
