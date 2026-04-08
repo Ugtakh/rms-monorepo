@@ -36,7 +36,7 @@ export interface EbarimtConfigRecord {
 
 export class EbarimtConfigRepository {
   static async findByBranch(tenantId: string, branchId: string): Promise<EbarimtConfigRecord | null> {
-    const doc = await EbarimtConfigModel.findOne({ tenantId, branchId }).lean();
+    const doc = await EbarimtConfigModel.findOne({ tenantId, branchId } as any).lean();
     return doc as EbarimtConfigRecord | null;
   }
 
@@ -47,7 +47,7 @@ export class EbarimtConfigRepository {
       {
         tenantId: input.tenantId,
         branchId: input.branchId
-      },
+      } as any,
       {
         $set: {
           ...input,
@@ -56,7 +56,7 @@ export class EbarimtConfigRepository {
         $setOnInsert: {
           createdById: input.updatedById
         }
-      },
+      } as any,
       {
         upsert: true,
         new: true

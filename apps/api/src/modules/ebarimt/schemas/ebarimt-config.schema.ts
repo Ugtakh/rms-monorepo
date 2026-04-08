@@ -1,6 +1,40 @@
-import mongoose, { Schema, model } from "mongoose";
+import mongoose, { type Model, Schema, model } from "mongoose";
+import type { EbarimtBillType, EbarimtTaxType, PosApiEnvironment } from "../types/posapi.types.js";
 
-const ebarimtConfigSchema = new Schema(
+export interface EbarimtConfig {
+  tenantId: string;
+  branchId: string;
+  enabled: boolean;
+  environment: PosApiEnvironment;
+  posApiBaseUrl: string;
+  merchantTin: string;
+  branchNo: string;
+  posNo: string;
+  districtCode: string;
+  defaultBillType: EbarimtBillType;
+  defaultTaxType: EbarimtTaxType;
+  billIdSuffix: string;
+  fallbackClassificationCode: string;
+  defaultMeasureUnit: string;
+  barCodeType: "GS1" | "UNDEFINED";
+  autoSendDataAfterIssue: boolean;
+  strictMode: boolean;
+  timeoutMs: number;
+  retryCount: number;
+  storeSensitiveFields: boolean;
+  xApiKey: string;
+  merchantName: string;
+  branchName: string;
+  branchAddress: string;
+  branchPhone: string;
+  logoUrl: string;
+  createdById?: string;
+  updatedById?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const ebarimtConfigSchema = new Schema<EbarimtConfig>(
   {
     tenantId: { type: String, required: true, index: true },
     branchId: { type: String, required: true, index: true },
@@ -63,4 +97,5 @@ const ebarimtConfigSchema = new Schema(
 ebarimtConfigSchema.index({ tenantId: 1, branchId: 1 }, { unique: true });
 
 export const EbarimtConfigModel =
-  mongoose.models.EbarimtConfig || model("EbarimtConfig", ebarimtConfigSchema);
+  (mongoose.models.EbarimtConfig as Model<EbarimtConfig> | undefined) ??
+  model<EbarimtConfig>("EbarimtConfig", ebarimtConfigSchema);

@@ -7,12 +7,14 @@ export class KdsRepository {
     status?: string;
     station?: string;
   }) {
-    return KdsTicketModel.find({
-      tenantId: input.tenantId,
-      branchId: input.branchId,
-      ...(input.status ? { status: input.status } : {}),
-      ...(input.station ? { station: input.station } : {})
-    })
+    return KdsTicketModel.find(
+      {
+        tenantId: input.tenantId,
+        branchId: input.branchId,
+        ...(input.status ? { status: input.status } : {}),
+        ...(input.station ? { station: input.station } : {})
+      } as any
+    )
       .sort({ createdAt: 1 })
       .lean();
   }
@@ -23,12 +25,12 @@ export class KdsRepository {
         _id: input.id,
         tenantId: input.tenantId,
         branchId: input.branchId
-      },
+      } as any,
       {
         $set: {
           status: input.status
         }
-      },
+      } as any,
       { new: true }
     ).lean();
   }
