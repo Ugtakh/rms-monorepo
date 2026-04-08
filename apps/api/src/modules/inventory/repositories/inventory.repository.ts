@@ -1,16 +1,12 @@
-import { Prisma } from "@prisma/client";
-import { prisma } from "../../../infrastructure/database/postgres/prisma.js";
+import { eq, and } from "drizzle-orm";
+import { db } from "../../../infrastructure/database/postgres/db.js";
+import { inventoryItems, inventoryLedgers } from "../../../infrastructure/database/postgres/schema.js";
 
 export class InventoryRepository {
   static list(tenantId: string, branchId: string) {
-    return prisma.inventoryItem.findMany({
-      where: {
-        tenantId,
-        branchId
-      },
-      orderBy: {
-        name: "asc"
-      }
+    return db.query.inventoryItems.findMany({
+      where: and(eq(inventoryItems.tenantId, tenantId), eq(inventoryItems.branchId, branchId)),
+      orderBy: (t, { asc }) => [asc(t.name)]
     });
   }
 
@@ -24,33 +20,32 @@ export class InventoryRepository {
     reorderLevel: number;
     averageCost: number;
   }) {
-    return prisma.$transaction(async (tx) => {
-      const item = await tx.inventoryItem.create({
-        data: {
+    return db.transaction(async (tx) => {
+      const [item] = await tx
+        .insert(inventoryItems)
+        .values({
           tenantId: input.tenantId,
           branchId: input.branchId,
           sku: input.sku,
           name: input.name,
           unit: input.unit,
-          onHand: new Prisma.Decimal(input.onHand),
-          reorderLevel: new Prisma.Decimal(input.reorderLevel),
-          averageCost: new Prisma.Decimal(input.averageCost)
-        }
+          onHand: String(input.onHand),
+          reorderLevel: String(input.reorderLevel),
+          averageCost: String(input.averageCost)
+        })
+        .returning();
+
+      await tx.insert(inventoryLedgers).values({
+        tenantId: input.tenantId,
+        branchId: input.branchId,
+        inventoryItemId: item!.id,
+        movementType: "OPENING",
+        quantity: String(input.onHand),
+        unitCost: String(input.averageCost),
+        referenceNo: "OPENING-BALANCE"
       });
 
-      await tx.inventoryLedger.create({
-        data: {
-          tenantId: input.tenantId,
-          branchId: input.branchId,
-          inventoryItemId: item.id,
-          movementType: "OPENING",
-          quantity: new Prisma.Decimal(input.onHand),
-          unitCost: new Prisma.Decimal(input.averageCost),
-          referenceNo: "OPENING-BALANCE"
-        }
-      });
-
-      return item;
+      return item!;
     });
   }
 
@@ -63,51 +58,45 @@ export class InventoryRepository {
     unitCost?: number;
     note?: string;
   }) {
-    return prisma.$transaction(async (tx) => {
-      const item = await tx.inventoryItem.findFirst({
-        where: {
-          id: input.id,
-          tenantId: input.tenantId,
-          branchId: input.branchId
-        }
+    return db.transaction(async (tx) => {
+      const item = await tx.query.inventoryItems.findFirst({
+        where: and(
+          eq(inventoryItems.id, input.id),
+          eq(inventoryItems.tenantId, input.tenantId),
+          eq(inventoryItems.branchId, input.branchId)
+        )
       });
 
-      if (!item) {
-        return null;
-      }
+      if (!item) return null;
 
+      const currentOnHand = Number(item.onHand);
       const nextOnHand =
         input.movementType === "OUT"
-          ? item.onHand.minus(input.quantity)
-          : item.onHand.plus(input.quantity);
+          ? currentOnHand - input.quantity
+          : currentOnHand + input.quantity;
 
-      if (nextOnHand.lessThan(0)) {
-        throw new Error("Insufficient stock");
-      }
+      if (nextOnHand < 0) throw new Error("Insufficient stock");
 
-      const updated = await tx.inventoryItem.update({
-        where: {
-          id: item.id
-        },
-        data: {
-          onHand: nextOnHand,
-          averageCost: input.unitCost ? new Prisma.Decimal(input.unitCost) : undefined
-        }
+      const [updated] = await tx
+        .update(inventoryItems)
+        .set({
+          onHand: String(nextOnHand),
+          ...(input.unitCost ? { averageCost: String(input.unitCost) } : {})
+        })
+        .where(eq(inventoryItems.id, item.id))
+        .returning();
+
+      await tx.insert(inventoryLedgers).values({
+        tenantId: input.tenantId,
+        branchId: input.branchId,
+        inventoryItemId: item.id,
+        movementType: input.movementType,
+        quantity: String(input.quantity),
+        unitCost: input.unitCost ? String(input.unitCost) : null,
+        note: input.note
       });
 
-      await tx.inventoryLedger.create({
-        data: {
-          tenantId: input.tenantId,
-          branchId: input.branchId,
-          inventoryItemId: item.id,
-          movementType: input.movementType,
-          quantity: new Prisma.Decimal(input.quantity),
-          unitCost: input.unitCost ? new Prisma.Decimal(input.unitCost) : null,
-          note: input.note
-        }
-      });
-
-      return updated;
+      return updated!;
     });
   }
 }

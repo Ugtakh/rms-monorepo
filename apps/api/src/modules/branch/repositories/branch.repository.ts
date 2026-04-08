@@ -1,67 +1,41 @@
-import { prisma } from "../../../infrastructure/database/postgres/prisma.js";
+import { eq } from "drizzle-orm";
+import { db } from "../../../infrastructure/database/postgres/db.js";
+import { branches, diningTables } from "../../../infrastructure/database/postgres/schema.js";
 
 export class BranchRepository {
   static listAll() {
-    return prisma.branch.findMany({
-      include: {
-        tenant: true,
-        _count: {
-          select: {
-            users: true,
-            orders: true
-          }
-        }
-      },
-      orderBy: {
-        createdAt: "desc"
-      }
+    return db.query.branches.findMany({
+      with: { tenant: true, users: true, orders: true },
+      orderBy: (t, { desc }) => [desc(t.createdAt)]
     });
   }
 
   static listByTenant(tenantId: string) {
-    return prisma.branch.findMany({
-      where: { tenantId },
-      include: {
-        _count: {
-          select: {
-            users: true,
-            orders: true
-          }
-        }
-      },
-      orderBy: {
-        createdAt: "desc"
-      }
+    return db.query.branches.findMany({
+      where: eq(branches.tenantId, tenantId),
+      with: { users: true, orders: true },
+      orderBy: (t, { desc }) => [desc(t.createdAt)]
     });
   }
 
-  static create(input: {
+  static async create(input: {
     tenantId: string;
     code: string;
     name: string;
     address?: string;
     phone?: string;
   }) {
-    return prisma.branch.create({
-      data: {
-        tenantId: input.tenantId,
-        code: input.code,
-        name: input.name,
-        address: input.address,
-        phone: input.phone
-      }
-    });
+    const rows = await db.insert(branches).values(input).returning();
+    return rows[0]!;
   }
 
   static createDefaultTables(tenantId: string, branchId: string) {
-    return prisma.diningTable.createMany({
-      data: Array.from({ length: 15 }, (_, index) => ({
-        tenantId,
-        branchId,
-        code: `T-${String(index + 1).padStart(2, "0")}`,
-        capacity: 4
-      })),
-      skipDuplicates: true
-    });
+    const data = Array.from({ length: 15 }, (_, i) => ({
+      tenantId,
+      branchId,
+      code: `T-${String(i + 1).padStart(2, "0")}`,
+      capacity: 4
+    }));
+    return db.insert(diningTables).values(data).onConflictDoNothing();
   }
 }

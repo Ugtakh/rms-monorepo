@@ -1,5 +1,4 @@
 import { StatusCodes } from "http-status-codes";
-import { Prisma } from "@prisma/client";
 import { AppError } from "../../../common/errors/app-error.js";
 import { getIo } from "../../../infrastructure/realtime/socket.js";
 import { EbarimtService } from "../../ebarimt/services/ebarimt.service.js";
@@ -97,7 +96,7 @@ export class PaymentsService {
         latestPayment.payload = {
           ...existing,
           ebarimt: ebarimtResult.receipt
-        } as unknown as Prisma.JsonObject;
+        };
       }
     }
 

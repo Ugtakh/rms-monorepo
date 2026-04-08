@@ -1,12 +1,14 @@
+import { eq, and } from "drizzle-orm";
 import { StatusCodes } from "http-status-codes";
 import { AppError } from "../../../common/errors/app-error.js";
 import { env } from "../../../config/env.js";
-import { prisma } from "../../../infrastructure/database/postgres/prisma.js";
+import { db } from "../../../infrastructure/database/postgres/db.js";
 import {
   EbarimtConfigRepository,
   type EbarimtConfigRecord
 } from "../repositories/ebarimt-config.repository.js";
 import type { EbarimtBillType, EbarimtTaxType, PosApiEnvironment } from "../types/posapi.types.js";
+import { branches } from "../../../infrastructure/database/postgres/schema.js";
 
 export interface EffectiveEbarimtConfig extends Omit<EbarimtConfigRecord, "createdAt" | "updatedAt"> {
   branchId: string;
@@ -29,14 +31,9 @@ function sanitizeCode(value: string, fallback: string): string {
 export class EbarimtSettingsService {
   static async getEffectiveConfig(input: { tenantId: string; branchId: string }): Promise<EffectiveEbarimtConfig> {
     const [branch, existing] = await Promise.all([
-      prisma.branch.findFirst({
-        where: {
-          id: input.branchId,
-          tenantId: input.tenantId
-        },
-        include: {
-          tenant: true
-        }
+      db.query.branches.findFirst({
+        where: and(eq(branches.id, input.branchId), eq(branches.tenantId, input.tenantId)),
+        with: { tenant: true }
       }),
       EbarimtConfigRepository.findByBranch(input.tenantId, input.branchId)
     ]);
@@ -116,11 +113,17 @@ export class EbarimtSettingsService {
       >
     >;
   }): Promise<EffectiveEbarimtConfig> {
-    const branch = await prisma.branch.findFirst({
-      where: {
-        id: input.branchId,
-        tenantId: input.tenantId
-      }
+    // db.query.tenants.findMany
+    // return db.query.tenants.findFirst({
+    //       where: eq(tenants.id, id),
+    //       with: {
+    //         branches: true,
+    //         users: true,
+    //         orders: true
+    //       }
+    //     });
+    const branch = await db.query.branches.findFirst({
+      where: and(eq(branches.id, input.branchId), eq(branches.tenantId, input.tenantId))
     });
 
     if (!branch) {

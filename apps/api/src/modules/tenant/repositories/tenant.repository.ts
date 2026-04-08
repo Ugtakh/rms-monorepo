@@ -1,43 +1,32 @@
-import { prisma } from "../../../infrastructure/database/postgres/prisma.js";
+import { eq } from "drizzle-orm";
+import { db } from "../../../infrastructure/database/postgres/db.js";
+import { tenants } from "../../../infrastructure/database/postgres/schema.js";
 
 export class TenantRepository {
   static list() {
-    return prisma.tenant.findMany({
-      include: {
-        _count: {
-          select: {
-            branches: true,
-            users: true
-          }
-        }
+    return db.query.tenants.findMany({
+      with: {
+        branches: true,
+        users: true,
+        orders: true
       },
-      orderBy: {
-        createdAt: "desc"
-      }
+      orderBy: (t, { desc }) => [desc(t.createdAt)]
     });
   }
 
   static findById(id: string) {
-    return prisma.tenant.findUnique({
-      where: { id },
-      include: {
+    return db.query.tenants.findFirst({
+      where: eq(tenants.id, id),
+      with: {
         branches: true,
-        _count: {
-          select: {
-            users: true,
-            orders: true
-          }
-        }
+        users: true,
+        orders: true
       }
     });
   }
 
-  static create(input: { code: string; name: string }) {
-    return prisma.tenant.create({
-      data: {
-        code: input.code,
-        name: input.name
-      }
-    });
+  static async create(input: { code: string; name: string }) {
+    const rows = await db.insert(tenants).values(input).returning();
+    return rows[0]!;
   }
 }

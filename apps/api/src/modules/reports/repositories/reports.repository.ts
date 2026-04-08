@@ -1,5 +1,6 @@
-import { PaymentStatus, Prisma } from "@prisma/client";
-import { prisma } from "../../../infrastructure/database/postgres/prisma.js";
+import { eq, and, gte, lte, ne, sql } from "drizzle-orm";
+import { db } from "../../../infrastructure/database/postgres/db.js";
+import { orders, payments } from "../../../infrastructure/database/postgres/schema.js";
 
 export class ReportsRepository {
   static async salesSummary(input: {
@@ -8,65 +9,72 @@ export class ReportsRepository {
     start: Date;
     end: Date;
   }) {
-    const orderWhere: Prisma.OrderWhereInput = {
-      tenantId: input.tenantId,
-      ...(input.branchId ? { branchId: input.branchId } : {}),
-      createdAt: {
-        gte: input.start,
-        lte: input.end
-      },
-      status: {
-        notIn: ["CANCELLED"]
-      }
-    };
+    const baseOrderWhere = and(
+      eq(orders.tenantId, input.tenantId),
+      input.branchId ? eq(orders.branchId, input.branchId) : undefined,
+      gte(orders.createdAt, input.start),
+      lte(orders.createdAt, input.end),
+      ne(orders.status, "CANCELLED")
+    );
 
-    const paymentWhere: Prisma.PaymentWhereInput = {
-      tenantId: input.tenantId,
-      ...(input.branchId ? { branchId: input.branchId } : {}),
-      createdAt: {
-        gte: input.start,
-        lte: input.end
-      },
-      status: PaymentStatus.PAID
-    };
+    const basePaymentWhere = and(
+      eq(payments.tenantId, input.tenantId),
+      input.branchId ? eq(payments.branchId, input.branchId) : undefined,
+      gte(payments.createdAt, input.start),
+      lte(payments.createdAt, input.end),
+      eq(payments.status, "PAID")
+    );
 
-    const [ordersAggregate, byBranch, byPaymentMethod] = await Promise.all([
-      prisma.order.aggregate({
-        where: orderWhere,
-        _count: { id: true },
-        _sum: { subtotal: true, taxAmount: true, serviceAmount: true, totalAmount: true }
-      }),
-      prisma.order.groupBy({
-        by: ["branchId"],
-        where: orderWhere,
-        _count: { id: true },
-        _sum: { totalAmount: true }
-      }),
-      prisma.payment.groupBy({
-        by: ["method"],
-        where: paymentWhere,
-        _count: { id: true },
-        _sum: { amount: true }
-      })
+    const [aggregate, byBranch, byPaymentMethod] = await Promise.all([
+      db
+        .select({
+          orderCount: sql<number>`count(${orders.id})::int`,
+          subtotal: sql<number>`coalesce(sum(${orders.subtotal}), 0)::float`,
+          taxAmount: sql<number>`coalesce(sum(${orders.taxAmount}), 0)::float`,
+          serviceAmount: sql<number>`coalesce(sum(${orders.serviceAmount}), 0)::float`,
+          totalAmount: sql<number>`coalesce(sum(${orders.totalAmount}), 0)::float`
+        })
+        .from(orders)
+        .where(baseOrderWhere),
+
+      db
+        .select({
+          branchId: orders.branchId,
+          orderCount: sql<number>`count(${orders.id})::int`,
+          totalAmount: sql<number>`coalesce(sum(${orders.totalAmount}), 0)::float`
+        })
+        .from(orders)
+        .where(baseOrderWhere)
+        .groupBy(orders.branchId),
+
+      db
+        .select({
+          method: payments.method,
+          count: sql<number>`count(${payments.id})::int`,
+          amount: sql<number>`coalesce(sum(${payments.amount}), 0)::float`
+        })
+        .from(payments)
+        .where(basePaymentWhere)
+        .groupBy(payments.method)
     ]);
 
     return {
-      totals: {
-        orderCount: ordersAggregate._count.id,
-        subtotal: Number(ordersAggregate._sum.subtotal ?? 0),
-        taxAmount: Number(ordersAggregate._sum.taxAmount ?? 0),
-        serviceAmount: Number(ordersAggregate._sum.serviceAmount ?? 0),
-        totalAmount: Number(ordersAggregate._sum.totalAmount ?? 0)
+      totals: aggregate[0] ?? {
+        orderCount: 0,
+        subtotal: 0,
+        taxAmount: 0,
+        serviceAmount: 0,
+        totalAmount: 0
       },
       byBranch: byBranch.map((item) => ({
         branchId: item.branchId,
-        orderCount: item._count.id,
-        totalAmount: Number(item._sum.totalAmount ?? 0)
+        orderCount: item.orderCount,
+        totalAmount: item.totalAmount
       })),
       byPaymentMethod: byPaymentMethod.map((item) => ({
         method: item.method,
-        count: item._count.id,
-        amount: Number(item._sum.amount ?? 0)
+        count: item.count,
+        amount: item.amount
       }))
     };
   }

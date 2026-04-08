@@ -31,6 +31,7 @@ export const createApp = () => {
   app.use(requestIdMiddleware);
 
   registerSwagger(app);
+  
   app.use("/api", apiRouter);
 
   app.use(notFoundHandler);

@@ -1,121 +1,85 @@
+import { eq, and, isNull, inArray } from "drizzle-orm";
 import { DEFAULT_ROLE_PERMISSIONS, type RoleKey } from "@rms/shared";
-import { RoleScope } from "@prisma/client";
-import { prisma } from "../../../infrastructure/database/postgres/prisma.js";
+import { db } from "../../../infrastructure/database/postgres/db.js";
+import {
+  permissions,
+  roles,
+  rolePermissions
+} from "../../../infrastructure/database/postgres/schema.js";
+import type { RoleScope } from "../../../infrastructure/database/postgres/schema.js";
 
 export class TenantBootstrapService {
   static async ensurePermissions(): Promise<Map<string, string>> {
     const permissionCodes = Array.from(
-      new Set(Object.values(DEFAULT_ROLE_PERMISSIONS).flatMap((value) => [...value]))
+      new Set(Object.values(DEFAULT_ROLE_PERMISSIONS).flatMap((v) => [...v]))
     );
 
-    await prisma.permission.createMany({
-      data: permissionCodes.map((code) => ({ code })),
-      skipDuplicates: true
+    await db
+      .insert(permissions)
+      .values(permissionCodes.map((code) => ({ code })))
+      .onConflictDoNothing();
+
+    const rows = await db.query.permissions.findMany({
+      where: inArray(permissions.code, permissionCodes)
     });
 
-    const permissions = await prisma.permission.findMany({
-      where: {
-        code: {
-          in: permissionCodes
-        }
-      }
-    });
-
-    return new Map(permissions.map((item) => [item.code, item.id]));
+    return new Map(rows.map((p) => [p.code, p.id]));
   }
 
   static async createTenantRoles(tenantId: string): Promise<void> {
     const permissionMap = await this.ensurePermissions();
-
     const tenantRoleKeys: RoleKey[] = ["ORG_ADMIN", "MANAGER"];
 
     for (const roleName of tenantRoleKeys) {
-      const existingRole = await prisma.role.findFirst({
-        where: {
-          name: roleName,
-          tenantId,
-          branchId: null
-        }
+      let role = await db.query.roles.findFirst({
+        where: and(eq(roles.name, roleName), eq(roles.tenantId, tenantId), isNull(roles.branchId))
       });
 
-      const role =
-        existingRole ??
-        (await prisma.role.create({
-          data: {
-            name: roleName,
-            tenantId,
-            branchId: null,
-            scope: RoleScope.TENANT,
-            isSystem: true
-          }
-        }));
+      if (!role) {
+        const [created] = await db
+          .insert(roles)
+          .values({ name: roleName, tenantId, branchId: null, scope: "TENANT" as RoleScope, isSystem: true })
+          .returning();
+        role = created!;
+      }
 
-      const permissions = DEFAULT_ROLE_PERMISSIONS[roleName];
-
-      for (const permission of permissions) {
-        const permissionId = permissionMap.get(permission);
-        if (!permissionId) continue;
-
-        await prisma.rolePermission.upsert({
-          where: {
-            roleId_permissionId: {
-              roleId: role.id,
-              permissionId
-            }
-          },
-          create: {
-            roleId: role.id,
-            permissionId
-          },
-          update: {}
-        });
+      for (const permCode of DEFAULT_ROLE_PERMISSIONS[roleName]) {
+        const permId = permissionMap.get(permCode);
+        if (!permId) continue;
+        await db
+          .insert(rolePermissions)
+          .values({ roleId: role.id, permissionId: permId })
+          .onConflictDoNothing();
       }
     }
   }
 
   static async createBranchRoles(tenantId: string, branchId: string): Promise<void> {
     const permissionMap = await this.ensurePermissions();
-
     const branchRoleKeys: RoleKey[] = ["CASHIER", "CHEF", "WAITER"];
 
     for (const roleName of branchRoleKeys) {
-      const role = await prisma.role.upsert({
-        where: {
-          name_tenantId_branchId: {
-            name: roleName,
-            tenantId,
-            branchId
-          }
-        },
-        create: {
-          name: roleName,
-          tenantId,
-          branchId,
-          scope: RoleScope.BRANCH,
-          isSystem: true
-        },
-        update: {}
-      });
+      const [role] = await db
+        .insert(roles)
+        .values({ name: roleName, tenantId, branchId, scope: "BRANCH" as RoleScope, isSystem: true })
+        .onConflictDoNothing()
+        .returning();
 
-      const permissions = DEFAULT_ROLE_PERMISSIONS[roleName];
+      const existingRole =
+        role ??
+        (await db.query.roles.findFirst({
+          where: and(eq(roles.name, roleName), eq(roles.tenantId, tenantId), eq(roles.branchId, branchId))
+        }));
 
-      for (const permission of permissions) {
-        const permissionId = permissionMap.get(permission);
-        if (!permissionId) continue;
+      if (!existingRole) continue;
 
-        await prisma.rolePermission.upsert({
-          where: {
-            roleId_permissionId: {
-              roleId: role.id,
-              permissionId
-            }
-          },
-          create: {
-            roleId: role.id,
-            permissionId
-          },
-          update: {}
-        });
+      for (const permCode of DEFAULT_ROLE_PERMISSIONS[roleName]) {
+        const permId = permissionMap.get(permCode);
+        if (!permId) continue;
+        await db
+          .insert(rolePermissions)
+          .values({ roleId: existingRole.id, permissionId: permId })
+          .onConflictDoNothing();
       }
     }
   }

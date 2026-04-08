@@ -1,66 +1,64 @@
-import type { Prisma } from "@prisma/client";
-import { prisma } from "../../../infrastructure/database/postgres/prisma.js";
+import { eq, and, gt, isNull } from "drizzle-orm";
+import { db } from "../../../infrastructure/database/postgres/db.js";
+import {
+  users,
+  roles,
+  userRoles,
+  refreshTokens
+} from "../../../infrastructure/database/postgres/schema.js";
 
-const authUserInclude = {
-  userRoles: {
-    include: {
-      role: {
-        include: {
-          rolePermissions: {
-            include: {
-              permission: true
+const userWithRoles = {
+  with: {
+    userRoles: {
+      with: {
+        role: {
+          with: {
+            rolePermissions: {
+              with: {
+                permission: true
+              }
             }
           }
         }
       }
     }
   }
-} satisfies Prisma.UserInclude;
+} as const;
 
 export class AuthRepository {
   static findUserByEmail(email: string) {
-    return prisma.user.findUnique({
-      where: { email },
-      include: authUserInclude
+    return db.query.users.findFirst({
+      where: eq(users.email, email),
+      ...userWithRoles
     });
   }
 
   static findUserById(id: string) {
-    return prisma.user.findUnique({
-      where: { id },
-      include: authUserInclude
+    return db.query.users.findFirst({
+      where: eq(users.id, id),
+      ...userWithRoles
     });
   }
 
-  static createRefreshToken(userId: string, tokenHash: string, expiresAt: Date) {
-    return prisma.refreshToken.create({
-      data: {
-        userId,
-        tokenHash,
-        expiresAt
-      }
-    });
+  static async createRefreshToken(userId: string, tokenHash: string, expiresAt: Date) {
+    const rows = await db.insert(refreshTokens).values({ userId, tokenHash, expiresAt }).returning();
+    return rows[0]!;
   }
 
   static revokeRefreshToken(tokenHash: string) {
-    return prisma.refreshToken.updateMany({
-      where: {
-        tokenHash,
-        revokedAt: null
-      },
-      data: {
-        revokedAt: new Date()
-      }
-    });
+    return db
+      .update(refreshTokens)
+      .set({ revokedAt: new Date() })
+      .where(and(eq(refreshTokens.tokenHash, tokenHash), isNull(refreshTokens.revokedAt)));
   }
 
   static findRefreshToken(tokenHash: string) {
-    return prisma.refreshToken.findFirst({
-      where: {
-        tokenHash,
-        revokedAt: null,
-        expiresAt: { gt: new Date() }
-      }
+    return db.query.refreshTokens.findFirst({
+      where: and(
+        eq(refreshTokens.tokenHash, tokenHash),
+        isNull(refreshTokens.revokedAt),
+        gt(refreshTokens.expiresAt, new Date())
+      )
     });
   }
 
@@ -73,33 +71,35 @@ export class AuthRepository {
     phone?: string;
     roleName: string;
   }) {
-    const role = await prisma.role.findFirst({
-      where: {
-        name: input.roleName,
-        tenantId: input.tenantId,
-        ...(input.branchId ? { branchId: input.branchId } : { branchId: null })
-      }
+    const role = await db.query.roles.findFirst({
+      where: and(
+        eq(roles.name, input.roleName),
+        eq(roles.tenantId, input.tenantId),
+        input.branchId ? eq(roles.branchId, input.branchId) : isNull(roles.branchId)
+      )
     });
 
     if (!role) {
       throw new Error(`Role not found: ${input.roleName}`);
     }
 
-    return prisma.user.create({
-      data: {
+    const [user] = await db
+      .insert(users)
+      .values({
         tenantId: input.tenantId,
         branchId: input.branchId,
         email: input.email,
         passwordHash: input.passwordHash,
         fullName: input.fullName,
-        phone: input.phone,
-        userRoles: {
-          create: {
-            roleId: role.id
-          }
-        }
-      },
-      include: authUserInclude
+        phone: input.phone
+      })
+      .returning();
+
+    await db.insert(userRoles).values({ userId: user!.id, roleId: role.id });
+
+    return db.query.users.findFirst({
+      where: eq(users.id, user!.id),
+      ...userWithRoles
     });
   }
 }
