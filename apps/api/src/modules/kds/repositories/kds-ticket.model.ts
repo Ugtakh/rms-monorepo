@@ -1,6 +1,25 @@
-import mongoose, { Schema, model } from "mongoose";
+import mongoose, { type Model, Schema, model } from "mongoose";
 
-const kdsTicketSchema = new Schema(
+export interface KdsTicketItem {
+  menuItemId: string;
+  itemName: string;
+  quantity: number;
+  note?: string | null;
+}
+
+export interface KdsTicket {
+  tenantId: string;
+  branchId: string;
+  orderId: string;
+  orderNo: string;
+  status: string;
+  station: string;
+  items: KdsTicketItem[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const kdsTicketSchema = new Schema<KdsTicket>(
   {
     tenantId: { type: String, required: true, index: true },
     branchId: { type: String, required: true, index: true },
@@ -25,4 +44,6 @@ const kdsTicketSchema = new Schema(
 
 kdsTicketSchema.index({ tenantId: 1, branchId: 1, orderId: 1 }, { unique: true });
 
-export const KdsTicketModel = mongoose.models.KdsTicket || model("KdsTicket", kdsTicketSchema);
+export const KdsTicketModel =
+  (mongoose.models.KdsTicket as Model<KdsTicket> | undefined) ??
+  model<KdsTicket>("KdsTicket", kdsTicketSchema);

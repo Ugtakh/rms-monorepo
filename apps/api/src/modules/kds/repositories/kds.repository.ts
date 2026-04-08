@@ -32,4 +32,61 @@ export class KdsRepository {
       { new: true }
     ).lean();
   }
+
+  static upsertForOrder(input: {
+    tenantId: string;
+    branchId: string;
+    orderId: string;
+    orderNo: string;
+    status: string;
+    station: string;
+    items: Array<{
+      menuItemId: string;
+      itemName: string;
+      quantity: number;
+      note?: string | null;
+    }>;
+  }) {
+    const filter = {
+      tenantId: input.tenantId,
+      branchId: input.branchId,
+      orderId: input.orderId
+    };
+    const update = {
+      $set: {
+        tenantId: input.tenantId,
+        branchId: input.branchId,
+        orderId: input.orderId,
+        orderNo: input.orderNo,
+        status: input.status,
+        station: input.station,
+        items: input.items
+      }
+    };
+
+    return KdsTicketModel.findOneAndUpdate(filter as any, update as any, {
+      upsert: true,
+      new: true
+    }).lean();
+  }
+
+  static updateStatusByOrder(input: {
+    tenantId: string;
+    branchId: string;
+    orderId: string;
+    status: string;
+  }) {
+    const filter = {
+      tenantId: input.tenantId,
+      branchId: input.branchId,
+      orderId: input.orderId
+    };
+    const update = {
+      $set: {
+        status: input.status
+      }
+    };
+
+    return KdsTicketModel.findOneAndUpdate(filter as any, update as any, { new: true }).lean();
+  }
 }

@@ -3,7 +3,7 @@ import { nanoid } from "nanoid";
 import { StatusCodes } from "http-status-codes";
 import { AppError } from "../../../common/errors/app-error.js";
 import { getIo } from "../../../infrastructure/realtime/socket.js";
-import { KdsTicketModel } from "../../kds/repositories/kds-ticket.model.js";
+import { KdsRepository } from "../../kds/repositories/kds.repository.js";
 import {
   OrderRepository,
   type CreateOrderRepositoryInput
@@ -75,31 +75,21 @@ export class OrdersService {
 
     const order = await OrderRepository.create(payload);
 
-    if (input.sendToKitchen) {
-      await KdsTicketModel.findOneAndUpdate(
-        {
-          tenantId: input.tenantId,
-          branchId: input.branchId,
-          orderId: order?.id
-        },
-        {
-          $set: {
-            tenantId: input.tenantId,
-            branchId: input.branchId,
-            orderId: order?.id,
-            orderNo: order?.orderNo,
-            status: order?.status,
-            station: "main",
-            items: order?.items.map((item) => ({
-              menuItemId: item.menuItemId,
-              itemName: item.itemName,
-              quantity: Number(item.quantity),
-              note: item.note
-            }))
-          }
-        },
-        { upsert: true, new: true }
-      );
+    if (input.sendToKitchen && order) {
+      await KdsRepository.upsertForOrder({
+        tenantId: input.tenantId,
+        branchId: input.branchId,
+        orderId: order.id,
+        orderNo: order.orderNo,
+        status: order.status,
+        station: "main",
+        items: order.items.map((item) => ({
+          menuItemId: item.menuItemId,
+          itemName: item.itemName,
+          quantity: Number(item.quantity),
+          note: item.note ?? undefined
+        }))
+      });
     }
 
     const io = getIo();
@@ -140,15 +130,14 @@ export class OrdersService {
       status: input.status
     });
 
-    await KdsTicketModel.findOneAndUpdate(
-      { tenantId: input.tenantId, branchId: input.branchId, orderId: updated?.id },
-      {
-        $set: {
-          status: updated?.status
-        }
-      },
-      { new: true }
-    );
+    if (updated) {
+      await KdsRepository.updateStatusByOrder({
+        tenantId: input.tenantId,
+        branchId: input.branchId,
+        orderId: updated.id,
+        status: updated.status
+      });
+    }
 
     getIo().to(`branch:${input.branchId}`).emit("order.status.updated", {
       orderId: updated?.id,
