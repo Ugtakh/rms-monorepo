@@ -80,17 +80,17 @@ export class OrdersService {
         {
           tenantId: input.tenantId,
           branchId: input.branchId,
-          orderId: order.id
+          orderId: order?.id
         },
         {
           $set: {
             tenantId: input.tenantId,
             branchId: input.branchId,
-            orderId: order.id,
-            orderNo: order.orderNo,
-            status: order.status,
+            orderId: order?.id,
+            orderNo: order?.orderNo,
+            status: order?.status,
             station: "main",
-            items: order.items.map((item) => ({
+            items: order?.items.map((item) => ({
               menuItemId: item.menuItemId,
               itemName: item.itemName,
               quantity: Number(item.quantity),
@@ -109,8 +109,8 @@ export class OrdersService {
 
     if (input.sendToKitchen) {
       io.to(`branch:${input.branchId}`).emit("kds.ticket.created", {
-        orderId: order.id,
-        orderNo: order.orderNo
+        orderId: order?.id,
+        orderNo: order?.orderNo
       });
     }
 
@@ -141,18 +141,18 @@ export class OrdersService {
     });
 
     await KdsTicketModel.findOneAndUpdate(
-      { tenantId: input.tenantId, branchId: input.branchId, orderId: updated.id },
+      { tenantId: input.tenantId, branchId: input.branchId, orderId: updated?.id },
       {
         $set: {
-          status: updated.status
+          status: updated?.status
         }
       },
       { new: true }
     );
 
     getIo().to(`branch:${input.branchId}`).emit("order.status.updated", {
-      orderId: updated.id,
-      status: updated.status
+      orderId: updated?.id,
+      status: updated?.status
     });
 
     return updated;
