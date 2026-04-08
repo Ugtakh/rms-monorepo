@@ -1,4 +1,4 @@
-import mongoose, { InferSchemaType, Schema, model } from "mongoose";
+import mongoose, { Schema, model } from "mongoose";
 
 const kdsTicketSchema = new Schema(
   {
@@ -25,7 +25,4 @@ const kdsTicketSchema = new Schema(
 
 kdsTicketSchema.index({ tenantId: 1, branchId: 1, orderId: 1 }, { unique: true });
 
-type KdsTicket = InferSchemaType<typeof kdsTicketSchema>;
-
-export const KdsTicketModel =
-  mongoose.models.KdsTicket || model<KdsTicket>("KdsTicket", kdsTicketSchema);
+export const KdsTicketModel = mongoose.models.KdsTicket || model("KdsTicket", kdsTicketSchema);
