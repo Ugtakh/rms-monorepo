@@ -1,7 +1,6 @@
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import express from "express";
-import helmet from "helmet";
 import morgan from "morgan";
 import { env } from "./config/env.js";
 import { requestIdMiddleware } from "./common/middleware/request-id.middleware.js";
@@ -13,11 +12,6 @@ import { registerSwagger } from "./docs/swagger.js";
 export const createApp = () => {
   const app = express();
 
-  app.use(
-    helmet({
-      contentSecurityPolicy: false
-    })
-  );
   app.use(
     cors({
       origin: env.APP_ORIGIN,
