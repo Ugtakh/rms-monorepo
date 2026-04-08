@@ -9,6 +9,7 @@ import { notFoundHandler } from "./common/middleware/not-found.js";
 import { apiRouter } from "./routes/index.js";
 import { registerSwagger } from "./docs/swagger.js";
 import { bootstrapApp } from "./bootstrap.js";
+import { HealthController } from "./modules/health/controllers/health.controller.js";
 
 export const createApp = () => {
   const app = express();
@@ -26,6 +27,9 @@ export const createApp = () => {
   app.use(requestIdMiddleware);
 
   registerSwagger(app);
+
+  app.get("/", HealthController.status);
+  app.get("/health", HealthController.status);
 
   app.use(async (_req, _res, next) => {
     try {
