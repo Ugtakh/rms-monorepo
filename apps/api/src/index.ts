@@ -2,7 +2,6 @@ import http from "http";
 import app from "./app.js";
 import { env } from "./config/env.js";
 import { bootstrapApp } from "./bootstrap.js";
-import { redis } from "./infrastructure/database/redis/redis.js";
 import { initializeSocket } from "./infrastructure/realtime/socket.js";
 
 const bootstrap = async (): Promise<void> => {
@@ -17,7 +16,6 @@ const bootstrap = async (): Promise<void> => {
   });
 
   const shutdown = async () => {
-    await Promise.allSettled([redis.quit()]);
     server.close(() => process.exit(0));
   };
 
