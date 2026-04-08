@@ -1,6 +1,42 @@
-import mongoose, { Schema, model } from "mongoose";
+import mongoose, { type Model, Schema, model } from "mongoose";
 
-const ingredientSchema = new Schema(
+export interface MenuIngredient {
+  inventoryItemId: string;
+  inventoryItemName: string;
+  quantity: number;
+  unit: string;
+  wastePercent: number;
+}
+
+export interface MenuServiceWindow {
+  label: string;
+  daysOfWeek: number[];
+  startTime: string;
+  endTime: string;
+  enabled: boolean;
+}
+
+export interface MenuItem {
+  tenantId: string;
+  branchId: string;
+  category: string;
+  sku: string;
+  name: string;
+  description?: string | null;
+  price: number;
+  available: boolean;
+  prepStation: string;
+  tags: string[];
+  ingredients: MenuIngredient[];
+  isSeasonal: boolean;
+  seasonStartDate?: Date | null;
+  seasonEndDate?: Date | null;
+  serviceWindows: MenuServiceWindow[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const ingredientSchema = new Schema<MenuIngredient>(
   {
     inventoryItemId: { type: String, required: true },
     inventoryItemName: { type: String, required: true },
@@ -11,7 +47,7 @@ const ingredientSchema = new Schema(
   { _id: false }
 );
 
-const serviceWindowSchema = new Schema(
+const serviceWindowSchema = new Schema<MenuServiceWindow>(
   {
     label: { type: String, default: "Window" },
     daysOfWeek: { type: [Number], default: [] },
@@ -22,7 +58,7 @@ const serviceWindowSchema = new Schema(
   { _id: false }
 );
 
-const menuItemSchema = new Schema(
+const menuItemSchema = new Schema<MenuItem>(
   {
     tenantId: { type: String, required: true, index: true },
     branchId: { type: String, required: true, index: true },
@@ -48,4 +84,6 @@ const menuItemSchema = new Schema(
 
 menuItemSchema.index({ tenantId: 1, branchId: 1, sku: 1 }, { unique: true });
 
-export const MenuItemModel = mongoose.models.MenuItem || model("MenuItem", menuItemSchema);
+export const MenuItemModel =
+  (mongoose.models.MenuItem as Model<MenuItem> | undefined) ??
+  model<MenuItem>("MenuItem", menuItemSchema);

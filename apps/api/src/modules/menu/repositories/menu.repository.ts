@@ -2,7 +2,9 @@ import { MenuItemModel } from "../schemas/menu-item.schema.js";
 
 export class MenuRepository {
   static list(tenantId: string, branchId: string) {
-    return MenuItemModel.find({ tenantId, branchId }).sort({ category: 1, name: 1 }).lean();
+    return MenuItemModel.find({ tenantId, branchId } as any)
+      .sort({ category: 1, name: 1 })
+      .lean();
   }
 
   static create(input: {
@@ -77,10 +79,10 @@ export class MenuRepository {
         _id: id,
         tenantId,
         branchId
-      },
+      } as any,
       {
         $set: setPatch
-      },
+      } as any,
       { new: true }
     ).lean();
   }
@@ -96,12 +98,12 @@ export class MenuRepository {
         _id: input.id,
         tenantId: input.tenantId,
         branchId: input.branchId
-      },
+      } as any,
       {
         $set: {
           available: input.available
         }
-      },
+      } as any,
       { new: true }
     ).lean();
   }
